@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}DP-800 Study Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-page">
+
+  <!-- ── Hero Banner ── -->
+  <div class="hero-banner">
+    <div class="hero-content">
+      <div class="hero-badge"><i class="fas fa-certificate me-2"></i>Microsoft DP-800 Exam Prep</div>
+      <h1 class="hero-title">Develop AI-Enabled<br>Database Solutions</h1>
+      <p class="hero-sub">Master T-SQL, AI embeddings, vector search, and RAG through clear explanations, hands-on SSMS practice, and smart quizzes.</p>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <span class="stat-num">{{ total_units }}</span>
+          <span class="stat-label">Units</span>
+        </div>
+        <div class="hero-stat">
+          <span class="stat-num">{{ completed }}</span>
+          <span class="stat-label">Completed</span>
+        </div>
+        <div class="hero-stat">
+          <span class="stat-num">{{ avg_score if avg_score else '—' }}{% if avg_score %}%{% endif %}</span>
+          <span class="stat-label">Avg Quiz Score</span>
+        </div>
+        <div class="hero-stat">
+          <span class="stat-num">{{ ((completed / total_units) * 100) | round | int if total_units else 0 }}%</span>
+          <span class="stat-label">Progress</span>
+        </div>
+      </div>
+      <!-- Overall progress bar -->
+      <div class="hero-progress-wrap">
+        <div class="hero-progress-bar" style="width: {{ ((completed/total_units)*100)|round|int if total_units else 0 }}%"></div>
+      </div>
+    </div>
+    <div class="hero-graphic">
+      <div class="fabric-wheel">
+        <div class="wheel-center"><i class="fas fa-database"></i><br><small>Azure SQL</small></div>
+        <div class="wheel-spoke" style="--deg:0deg;   --clr:#0078d4"><i class="fas fa-table"></i><small>T-SQL</small></div>
+        <div class="wheel-spoke" style="--deg:60deg;  --clr:#107c10"><i class="fas fa-shield-alt"></i><small>Security</small></div>
+        <div class="wheel-spoke" style="--deg:120deg; --clr:#ca5010"><i class="fas fa-tachometer-alt"></i><small>Performance</small></div>
+        <div class="wheel-spoke" style="--deg:180deg; --clr:#8764b8"><i class="fas fa-brain"></i><small>AI / RAG</small></div>
+        <div class="wheel-spoke" style="--deg:240deg; --clr:#038387"><i class="fas fa-search"></i><small>Vector Search</small></div>
+        <div class="wheel-spoke" style="--deg:300deg; --clr:#d83b01"><i class="fas fa-code-branch"></i><small>CI/CD</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Learning Paths Grid ── -->
+  <div class="container-fluid px-4 pb-5">
+    <div class="section-header">
+      <h2 class="section-title"><i class="fas fa-map-signs me-2"></i>Learning Paths</h2>
+      <a href="/mindmap" class="btn btn-outline-primary btn-sm"><i class="fas fa-project-diagram me-1"></i>View Mind Map</a>
+    </div>
+
+    {% for lp in course.learning_paths %}
+    {% set lp_done = namespace(count=0, total=0) %}
+    {% for m in lp.modules %}
+      {% for u in m.units %}
+        {% set lp_done.total = lp_done.total + 1 %}
+        {% if progress.get(u.id, {}).get('completed') %}{% set lp_done.count = lp_done.count + 1 %}{% endif %}
+      {% endfor %}
+    {% endfor %}
+    {% set lp_pct = ((lp_done.count / lp_done.total) * 100) | round | int if lp_done.total else 0 %}
+
+    <div class="lp-card mb-4" style="--lp-color: {{ lp.color }}">
+      <div class="lp-header">
+        <div class="lp-icon-wrap"><i class="{{ lp.icon }}"></i></div>
+        <div class="lp-header-info">
+          <div class="lp-number">Learning Path {{ loop.index }}</div>
+          <h3 class="lp-title">{{ lp.title }}</h3>
+          <p class="lp-desc">{{ lp.description }}</p>
+        </div>
+        <div class="lp-progress-circle">
+          <svg viewBox="0 0 36 36" class="circular-chart">
+            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+            <path class="circle-fill" stroke-dasharray="{{ lp_pct }}, 100"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+          </svg>
+          <div class="circle-label">{{ lp_pct }}%</div>
+        </div>
+      </div>
+
+      <div class="modules-grid">
+        {% for m in lp.modules %}
+        {% set m_done = namespace(count=0) %}
+        {% for u in m.units %}{% if progress.get(u.id, {}).get('completed') %}{% set m_done.count = m_done.count + 1 %}{% endif %}{% endfor %}
+        {% set m_pct = ((m_done.count / m.units|length) * 100) | round | int if m.units else 0 %}
+
+        <div class="module-card">
+          <div class="module-header">
+            <div class="module-title-row">
+              <span class="module-badge">Module {{ loop.index }}</span>
+              {% if m_pct == 100 %}<span class="badge bg-success ms-auto"><i class="fas fa-check me-1"></i>Complete</span>{% endif %}
+            </div>
+            <h4 class="module-title">{{ m.title }}</h4>
+            <p class="module-desc">{{ m.description }}</p>
+            <div class="module-progress-bar">
+              <div class="module-progress-fill" style="width: {{ m_pct }}%"></div>
+            </div>
+            <small class="text-muted">{{ m_done.count }}/{{ m.units|length }} units completed</small>
+          </div>
+
+          <div class="units-list">
+            {% for u in m.units %}
+            {% set u_prog = progress.get(u.id, {}) %}
+            {% set is_done = u_prog.get('completed', 0) %}
+            {% set score = u_prog.get('quiz_score') %}
+            <a href="/unit/{{ u.id }}" class="unit-item {% if is_done %}done{% endif %}">
+              <div class="unit-icon">
+                {% if is_done %}
+                  <i class="fas fa-check-circle text-success"></i>
+                {% else %}
+                  <i class="far fa-circle text-muted"></i>
+                {% endif %}
+              </div>
+              <div class="unit-info">
+                <span class="unit-name">{{ u.title }}</span>
+                {% if u.estimated_time %}
+                  <span class="unit-time"><i class="fas fa-clock me-1"></i>{{ u.estimated_time }} min</span>
+                {% endif %}
+              </div>
+              <div class="unit-score">
+                {% if score is not none %}
+                  <span class="score-badge {% if score >= 80 %}score-high{% elif score >= 60 %}score-mid{% else %}score-low{% endif %}">{{ score }}%</span>
+                {% endif %}
+                <i class="fas fa-chevron-right text-muted ms-2"></i>
+              </div>
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

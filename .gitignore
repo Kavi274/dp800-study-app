@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.pyo
+progress.db
+*.db
+.env
+venv/
+env/
+.venv/

@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+{% block title %}{{ unit.title }} – DP-800{% endblock %}
+
+{% block content %}
+<div class="unit-page">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="/" class="sidebar-back"><i class="fas fa-arrow-left me-2"></i>Dashboard</a>
+    </div>
+    <div class="sidebar-scroll">
+      {% for lp2 in course.learning_paths %}
+      <div class="sidebar-lp {% if lp2.id == lp.id %}active-lp{% endif %}" style="--lp-clr: {{ lp2.color }}">
+        <div class="sidebar-lp-header" onclick="toggleLP('{{ lp2.id }}')">
+          <i class="{{ lp2.icon }} me-2"></i>
+          <span>{{ lp2.title | truncate(30) }}</span>
+          <i class="fas fa-chevron-down ms-auto sidebar-arrow" id="arr-{{ lp2.id }}"></i>
+        </div>
+        <div class="sidebar-lp-body {% if lp2.id == lp.id %}show{% endif %}" id="lp-body-{{ lp2.id }}">
+          {% for m2 in lp2.modules %}
+          <div class="sidebar-module">
+            <div class="sidebar-module-title">{{ m2.title }}</div>
+            {% for u2 in m2.units %}
+            {% set u2_prog = progress.get(u2.id, {}) %}
+            <a href="/unit/{{ u2.id }}"
+               class="sidebar-unit {% if u2.id == unit.id %}active{% endif %} {% if u2_prog.get('completed') %}completed{% endif %}">
+              <i class="fas {% if u2_prog.get('completed') %}fa-check-circle{% else %}fa-circle{% endif %} me-2 sidebar-dot"></i>
+              {{ u2.title | truncate(28) }}
+              {% if u2_prog.get('quiz_score') is not none %}
+                <span class="sidebar-score">{{ u2_prog.quiz_score }}%</span>
+              {% endif %}
+            </a>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <!-- ── Main Content ── -->
+  <main class="unit-main" id="unitMain">
+
+    <!-- Toggle sidebar button (mobile) -->
+    <button class="sidebar-toggle-btn" onclick="toggleSidebar()" id="sidebarBtn">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Breadcrumb -->
+    <nav class="unit-breadcrumb">
+      <a href="/">Home</a>
+      <i class="fas fa-chevron-right mx-2 text-muted" style="font-size:.7rem"></i>
+      <span style="color: {{ lp.color }}">{{ lp.title | truncate(25) }}</span>
+      <i class="fas fa-chevron-right mx-2 text-muted" style="font-size:.7rem"></i>
+      <span class="text-muted">{{ module.title | truncate(25) }}</span>
+    </nav>
+
+    <!-- Unit Header -->
+    <div class="unit-header-card" style="--lp-color: {{ lp.color }}">
+      <div class="unit-header-left">
+        <div class="unit-lp-badge" style="background: {{ lp.color }}20; color: {{ lp.color }}; border: 1px solid {{ lp.color }}40">
+          <i class="{{ lp.icon }} me-1"></i>{{ lp.title }}
+        </div>
+        <h1 class="unit-title">{{ unit.title }}</h1>
+        <p class="unit-description">{{ unit.description }}</p>
+        <div class="unit-meta">
+          {% if unit.estimated_time %}<span class="meta-chip"><i class="fas fa-clock me-1"></i>{{ unit.estimated_time }} min</span>{% endif %}
+          {% if unit_progress.get('completed') %}<span class="meta-chip chip-success"><i class="fas fa-check me-1"></i>Completed</span>{% endif %}
+          {% if unit_progress.get('quiz_score') is not none %}<span class="meta-chip chip-score">Quiz: {{ unit_progress.quiz_score }}%</span>{% endif %}
+        </div>
+      </div>
+      <div class="unit-header-right">
+        <div class="objectives-box">
+          <h6><i class="fas fa-bullseye me-2"></i>Learning Objectives</h6>
+          <ul>
+            {% for obj in unit.objectives %}<li>{{ obj }}</li>{% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Content Sections ── -->
+    <div class="content-body">
+      {% for section in unit.content %}
+
+        {% if section.type == 'theory' %}
+        <div class="content-section theory-section">
+          <div class="section-icon theory-icon"><i class="fas fa-book-open"></i></div>
+          <div class="section-body">
+            <h3 class="section-title">{{ section.title }}</h3>
+            <div class="theory-text">{{ section.body | safe }}</div>
+          </div>
+        </div>
+
+        {% elif section.type == 'tip' %}
+        <div class="content-section tip-section">
+          <div class="section-icon tip-icon"><i class="fas fa-lightbulb"></i></div>
+          <div class="section-body">
+            <h4 class="section-title">{{ section.title }}</h4>
+            <div>{{ section.body | safe }}</div>
+          </div>
+        </div>
+
+        {% elif section.type == 'important' %}
+        <div class="content-section important-section">
+          <div class="section-icon important-icon"><i class="fas fa-exclamation-circle"></i></div>
+          <div class="section-body">
+            <h4 class="section-title">{{ section.title }}</h4>
+            <div>{{ section.body | safe }}</div>
+          </div>
+        </div>
+
+        {% elif section.type == 'sql_block' %}
+        <div class="content-section sql-section">
+          <div class="sql-section-header">
+            <div class="sql-icon"><i class="fas fa-code"></i></div>
+            <div>
+              <h3 class="section-title mb-1">{{ section.title }}</h3>
+              {% if section.scenario %}
+              <div class="sql-scenario"><i class="fas fa-info-circle me-1"></i>{{ section.scenario }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- SQL Code Block -->
+          <div class="sql-code-wrap">
+            <div class="code-header">
+              <span class="code-lang-badge"><i class="fas fa-code me-1"></i>SQL / T-SQL</span>
+              <button class="copy-btn" onclick="copyCode(this)"><i class="fas fa-copy me-1"></i>Copy</button>
+            </div>
+            <pre><code class="language-sql">{{ section.code }}</code></pre>
+          </div>
+
+          <!-- Explanation -->
+          <div class="sql-explanation">
+            <h5><i class="fas fa-align-left me-2 text-primary"></i>What This Query Does</h5>
+            <p>{{ section.explanation }}</p>
+          </div>
+
+          <!-- Purpose -->
+          {% if section.purpose %}
+          <div class="sql-purpose">
+            <h5><i class="fas fa-question-circle me-2 text-warning"></i>When &amp; Why to Use This</h5>
+            <p>{{ section.purpose }}</p>
+          </div>
+          {% endif %}
+
+          <!-- Line-by-line Breakdown -->
+          {% if section.breakdown %}
+          <div class="sql-breakdown">
+            <h5><i class="fas fa-list-ul me-2 text-success"></i>Line-by-Line Breakdown</h5>
+            <div class="breakdown-table">
+              {% for item in section.breakdown %}
+              <div class="breakdown-row">
+                <div class="breakdown-code"><code>{{ item.line }}</code></div>
+                <div class="breakdown-meaning">{{ item.meaning }}</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- SSMS Steps -->
+          {% if section.ssms_steps %}
+          <div class="ssms-steps">
+            <h5><i class="fas fa-terminal me-2" style="color:#569cd6"></i>Practical Steps in SSMS</h5>
+            <ol class="ssms-list">
+              {% for step in section.ssms_steps %}
+              <li>{{ step }}</li>
+              {% endfor %}
+            </ol>
+          </div>
+          {% endif %}
+
+          <!-- Exam Tip -->
+          {% if section.exam_tip %}
+          <div class="exam-tip">
+            <i class="fas fa-graduation-cap me-2"></i><strong>Exam Tip:</strong> {{ section.exam_tip }}
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      {% endfor %}
+    </div>
+
+    <!-- ── Mark Complete ── -->
+    {% if not unit_progress.get('completed') %}
+    <div class="complete-banner">
+      <div>
+        <h5 class="mb-1">Finished reading?</h5>
+        <small class="text-muted">Mark this unit complete, then take the quiz below.</small>
+      </div>
+      <button class="btn btn-success btn-lg" onclick="markComplete('{{ unit.id }}')">
+        <i class="fas fa-check me-2"></i>Mark as Complete
+      </button>
+    </div>
+    {% else %}
+    <div class="complete-banner complete-done">
+      <i class="fas fa-check-circle me-2 text-success" style="font-size:1.5rem"></i>
+      <span>Unit completed! Keep going below.</span>
+    </div>
+    {% endif %}
+
+    <!-- ── Quiz Section ── -->
+    {% if unit.quiz %}
+    <div class="quiz-section" id="quizSection">
+      <div class="quiz-header">
+        <div class="quiz-icon"><i class="fas fa-brain"></i></div>
+        <div>
+          <h2>Knowledge Check</h2>
+          <p class="text-muted mb-0">{{ unit.quiz | length }} questions &nbsp;·&nbsp; 70% to pass &nbsp;·&nbsp; Unlimited attempts</p>
+        </div>
+        {% if unit_progress.get('quiz_score') is not none %}
+        <div class="quiz-best-score">
+          Best: <span class="score-big {% if unit_progress.quiz_score >= 80 %}text-success{% elif unit_progress.quiz_score >= 60 %}text-warning{% else %}text-danger{% endif %}">{{ unit_progress.quiz_score }}%</span>
+        </div>
+        {% endif %}
+      </div>
+
+      <form id="quizForm">
+        {% for q in unit.quiz %}
+        <div class="quiz-question" id="qq-{{ loop.index0 }}">
+          <div class="q-number">Q{{ loop.index }}</div>
+          <div class="q-body">
+            <p class="q-text">{{ q.q }}</p>
+            <div class="q-options">
+              {% for opt in q.opts %}
+              <label class="q-option" id="opt-{{ loop.index0 }}-{{ loop.index0 }}">
+                <input type="radio" name="q{{ loop.index0 }}" value="{{ opt }}"
+                       onchange="selectOption(this)">
+                <span class="option-marker">{{ ['A','B','C','D'][loop.index0] }}</span>
+                <span class="option-text">{{ opt }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <div class="q-feedback" id="fb-{{ loop.index0 }}" style="display:none"></div>
+          </div>
+        </div>
+        {% endfor %}
+
+        <div class="quiz-submit-row">
+          <button type="button" class="btn btn-primary btn-lg px-5" onclick="submitQuiz('{{ unit.id }}')">
+            <i class="fas fa-paper-plane me-2"></i>Submit Quiz
+          </button>
+          <button type="button" class="btn btn-outline-secondary btn-lg" onclick="resetQuiz()" id="retryBtn" style="display:none">
+            <i class="fas fa-redo me-2"></i>Try Again
+          </button>
+        </div>
+      </form>
+
+      <!-- Score Display -->
+      <div id="scoreDisplay" style="display:none" class="score-display">
+        <div class="score-circle" id="scoreCircle">
+          <span id="scoreNum">0</span><span style="font-size:1.2rem">%</span>
+        </div>
+        <div id="scoreMsg" class="score-msg"></div>
+        <div id="scoreDetail" class="score-detail"></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ── Navigation ── -->
+    <div class="unit-nav-bar">
+      {% if prev_unit %}
+      <a href="/unit/{{ prev_unit.id }}" class="nav-btn nav-prev">
+        <i class="fas fa-arrow-left"></i>
+        <div><small>Previous</small><br>{{ prev_unit.title | truncate(30) }}</div>
+      </a>
+      {% else %}<div></div>{% endif %}
+
+      <a href="/" class="btn btn-outline-secondary"><i class="fas fa-th me-1"></i>All Units</a>
+
+      {% if next_unit %}
+      <a href="/unit/{{ next_unit.id }}" class="nav-btn nav-next">
+        <div><small>Next</small><br>{{ next_unit.title | truncate(30) }}</div>
+        <i class="fas fa-arrow-right"></i>
+      </a>
+      {% else %}<div></div>{% endif %}
+    </div>
+
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const QUIZ_DATA = {{ unit.quiz | tojson }};
+
+function toggleLP(id) {
+  const body = document.getElementById('lp-body-' + id);
+  const arr  = document.getElementById('arr-' + id);
+  body.classList.toggle('show');
+  arr.classList.toggle('rotated');
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+function selectOption(radio) {
+  const qName = radio.name;
+  document.querySelectorAll(`input[name="${qName}"]`).forEach(r => {
+    r.closest('.q-option').classList.remove('selected');
+  });
+  radio.closest('.q-option').classList.add('selected');
+}
+
+function markComplete(uid) {
+  fetch('/api/complete/' + uid, {method:'POST'}).then(() => {
+    showToast('Unit marked complete!', 'success');
+    setTimeout(() => location.reload(), 800);
+  });
+}
+
+function submitQuiz(uid) {
+  const answers = {};
+  let allAnswered = true;
+  QUIZ_DATA.forEach((q, i) => {
+    const sel = document.querySelector(`input[name="q${i}"]:checked`);
+    if (sel) answers[i] = sel.value;
+    else allAnswered = false;
+  });
+  if (!allAnswered) { showToast('Please answer all questions before submitting.', 'warning'); return; }
+
+  fetch('/api/quiz/' + uid, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({answers})
+  }).then(r => r.json()).then(data => {
+    showResults(data);
+  });
+}
+
+function showResults(data) {
+  // Show per-question feedback
+  data.results.forEach((r, i) => {
+    const fb = document.getElementById('fb-' + i);
+    fb.style.display = 'block';
+    fb.className = 'q-feedback ' + (r.is_correct ? 'fb-correct' : 'fb-wrong');
+    fb.innerHTML = `
+      <div class="fb-status">${r.is_correct ? '✅ Correct!' : '❌ Incorrect'}</div>
+      <div class="fb-correct-ans"><strong>Correct answer:</strong> ${r.correct_answer}</div>
+      <div class="fb-explain"><strong>Explanation:</strong> ${r.explanation}</div>
+    `;
+    // Style the options
+    document.querySelectorAll(`input[name="q${i}"]`).forEach(inp => {
+      inp.disabled = true;
+      const lbl = inp.closest('.q-option');
+      if (inp.value === r.correct_answer) lbl.classList.add('opt-correct');
+      else if (inp.value === r.user_answer && !r.is_correct) lbl.classList.add('opt-wrong');
+    });
+  });
+
+  // Show score
+  const sd = document.getElementById('scoreDisplay');
+  sd.style.display = 'flex';
+  const circle = document.getElementById('scoreCircle');
+  const pct = data.percentage;
+  document.getElementById('scoreNum').textContent = pct;
+  circle.className = 'score-circle ' + (pct >= 80 ? 'score-excellent' : pct >= 70 ? 'score-pass' : 'score-fail');
+
+  const msgs = {
+    excellent: ['🏆 Outstanding!', 'Perfect exam readiness for this unit!'],
+    pass:      ['✅ Well Done!', 'You passed! Review any mistakes and you\'re ready to move on.'],
+    fail:      ['📚 Keep Studying', 'Review the explanations above, then try again. You\'ve got this!']
+  };
+  const level = pct >= 80 ? 'excellent' : pct >= 70 ? 'pass' : 'fail';
+  const [title, sub] = msgs[level];
+  document.getElementById('scoreMsg').innerHTML = `<h3>${title}</h3><p>${sub}</p>`;
+  document.getElementById('scoreDetail').innerHTML =
+    `<span>Score: <strong>${data.score}/${data.total}</strong></span>
+     <span>Percentage: <strong>${pct}%</strong></span>
+     <span>${data.passed ? '✅ PASSED' : '❌ NEEDS IMPROVEMENT'}</span>`;
+
+  document.getElementById('retryBtn').style.display = 'inline-flex';
+  sd.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function resetQuiz() {
+  document.getElementById('quizForm').reset();
+  document.querySelectorAll('.q-option').forEach(l => l.classList.remove('selected','opt-correct','opt-wrong'));
+  document.querySelectorAll('.q-feedback').forEach(f => { f.style.display='none'; f.className='q-feedback'; });
+  document.querySelectorAll('input[type=radio]').forEach(r => r.disabled = false);
+  document.getElementById('scoreDisplay').style.display = 'none';
+  document.getElementById('retryBtn').style.display = 'none';
+  document.getElementById('quizSection').scrollIntoView({behavior:'smooth'});
+}
+</script>
+{% endblock %}

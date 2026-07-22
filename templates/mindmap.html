@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Mind Map – DP-800{% endblock %}
+
+{% block content %}
+<div class="mindmap-page">
+  <div class="mindmap-header">
+    <h1><i class="fas fa-project-diagram me-2"></i>Course Mind Map</h1>
+    <p class="text-muted">Visual overview of all Learning Paths → Modules → Units</p>
+    <div class="mindmap-controls">
+      <button class="btn btn-sm btn-outline-primary" onclick="expandAll()"><i class="fas fa-expand-alt me-1"></i>Expand All</button>
+      <button class="btn btn-sm btn-outline-secondary" onclick="collapseAll()"><i class="fas fa-compress-alt me-1"></i>Collapse All</button>
+    </div>
+  </div>
+
+  <div class="mindmap-container">
+    <!-- Center node -->
+    <div class="mm-center">
+      <div class="mm-root">
+        <i class="fas fa-database me-2"></i>DP-800<br>
+        <small>AI-Enabled Database Solutions</small>
+      </div>
+    </div>
+
+    <!-- Learning Paths -->
+    <div class="mm-lp-grid">
+      {% for lp in course.learning_paths %}
+      <div class="mm-lp" style="--lp-clr: {{ lp.color }}">
+        <div class="mm-lp-node" onclick="toggleMMLP('{{ lp.id }}')">
+          <div class="mm-lp-icon"><i class="{{ lp.icon }}"></i></div>
+          <div class="mm-lp-label">
+            <div class="mm-lp-num">LP{{ loop.index }}</div>
+            <div class="mm-lp-title">{{ lp.title }}</div>
+            <div class="mm-lp-count">{{ lp.modules | length }} modules</div>
+          </div>
+          <i class="fas fa-chevron-down mm-toggle-icon" id="mm-arr-{{ lp.id }}"></i>
+        </div>
+
+        <div class="mm-modules" id="mm-lp-{{ lp.id }}">
+          {% for m in lp.modules %}
+          <div class="mm-module" onclick="toggleMMModule('{{ m.id }}')">
+            <div class="mm-module-node">
+              <i class="fas fa-folder me-2"></i>{{ m.title }}
+              <span class="mm-unit-count">{{ m.units | length }} units</span>
+              <i class="fas fa-chevron-down mm-toggle-icon ms-auto" id="mm-arr-{{ m.id }}"></i>
+            </div>
+            <div class="mm-units" id="mm-mod-{{ m.id }}">
+              {% for u in m.units %}
+              <a href="/unit/{{ u.id }}" class="mm-unit">
+                <i class="fas fa-file-alt me-2"></i>{{ u.title }}
+                {% if u.estimated_time %}<span class="mm-time">{{ u.estimated_time }}m</span>{% endif %}
+              </a>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="mindmap-legend">
+    <h6 class="mb-3">Learning Path Colors</h6>
+    <div class="legend-items">
+      {% for lp in course.learning_paths %}
+      <div class="legend-item">
+        <div class="legend-dot" style="background: {{ lp.color }}"></div>
+        <span>LP{{ loop.index }}: {{ lp.title }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleMMLP(id) {
+  const body = document.getElementById('mm-lp-' + id);
+  const arr  = document.getElementById('mm-arr-' + id);
+  body.classList.toggle('open');
+  arr.classList.toggle('rotated');
+}
+function toggleMMModule(id) {
+  const body = document.getElementById('mm-mod-' + id);
+  const arr  = document.getElementById('mm-arr-' + id);
+  body.classList.toggle('open');
+  arr.classList.toggle('rotated');
+}
+function expandAll() {
+  document.querySelectorAll('.mm-modules,.mm-units').forEach(el => el.classList.add('open'));
+  document.querySelectorAll('.mm-toggle-icon').forEach(el => el.classList.add('rotated'));
+}
+function collapseAll() {
+  document.querySelectorAll('.mm-modules,.mm-units').forEach(el => el.classList.remove('open'));
+  document.querySelectorAll('.mm-toggle-icon').forEach(el => el.classList.remove('rotated'));
+}
+</script>
+{% endblock %}
